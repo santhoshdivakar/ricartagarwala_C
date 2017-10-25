@@ -1,32 +1,45 @@
-#include <stdio.h>
+#include <time.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include "client.h"
+#include "message.h"
 #include <syslog.h>
 
-const NODES=10
-int main(int argc, char **argv) {
-    char *nodeNum;
-    int requestDeferred[NODES]; // to store the requests.
-    if (argc != 2) {
-        printf("Syntax: \n %s <node_num>\n",argv[0]);
-    }
-    // Get the syslog setup
-    openlog("RICART",LOG_PID, LOG_USER);
-    nodeNum = argv[1];
-    syslog(LOG_INFO,"%s  - %s",nodeNum, "Entered the program");
-    //1. Create the semaphore for communication between the server and the client
-    //2. Fork into client and server options
-    myPid = fork();
-    if (myPid == 0) {
-        //3a. Run the client code.
-        syslog(LOG_INFO,"%s  - %s",nodeNum, "Client Process started");
-    } else {
-        //3b. Run the server code
-        syslog(LOG_INFO,"%s  - %s",nodeNum, "Server Process started");
-        //3b1. Setup the listening port and listen to packets.
-        syslog(LOG_INFO,"%s  - %s",nodeNum, "Server Process Listening");
-        //3b2. Setup the thread for each of the receiving packets
+#define TIME_LEN 20
 
-            
+int client(char *nodeNum, int *nodeList, int numOfNodes){
+    int i,j;
+    struct message msg;
+    char *requestMessage;
+
+    syslog(LOG_INFO,"%s  - %s",nodeNum, "Client Process Starting");
+    for (i=0;i<20;i++){
+        syslog(LOG_INFO,"%s  - %s",nodeNum, "Client Process starting the approval process");
+        //form the message
+        msg.mtype = MSG_REQUEST;
+        msg.nodeNum = atoi(nodeNum);
+        msg.timeStamp = time(NULL);
+        for (j=0;j<numOfNodes;j++){
+            printf("Current time we got is: %d\n",msg.timeStamp);
+            syslog(LOG_INFO,"%s  - %s %d",nodeNum, "Client Process Sending Request for critical Section to node:",nodeList[i]);
+            if(sendRequest(nodeList[i], msg) != 0) {
+                //serious shit happened here
+            }
         }
+        // Now we got all the approvals
+        syslog(LOG_INFO,"%s  - %s",nodeNum, "Client Process Got all approvals");
+        // Run the Critical Section
+        syslog(LOG_INFO,"%s  - %s",nodeNum, "Client Process start the critical section");
+        sleep(5);
+
+        // Send the finished message to the server of this node
+        msg.mtype = MSG_FINISHED;
+        if(sendRequest(atoi(nodeNum), msg) != 0) {
+           //serious shit happened here
+        }
+        syslog(LOG_INFO,"%s  - %s",nodeNum, "Client Process Finish the critical section");
+        // Out of Critical Section
+        sleep(30);
     }
-    return 0;
 }

@@ -7,64 +7,63 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <syslog.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include "message.h"
 
 
-define MAXSIZE     128
 
-struct msgbuf
-{
-    long    mtype; // REQUEST=0 ; REPLY=1;
-    char    messageId[MAXSIZE];
-};
+int sendRequest(int port, struct message msg){
+    int sockfd = 0, n = 0;
+    char recvBuff[10];
+    struct sockaddr_in serv_addr;
 
-int sendRequest(int msgKey)
-{
-    int msqid;
-    int msgflg = IPC_CREAT | 0666;
-    key_t key;
-    struct msgbuf sbuf;
-    size_t buflen;
+    memset(recvBuff, '0',sizeof(recvBuff));
 
-    key = 1234;
+    printf("Sending Message\n");
 
-    if ((msqid = msgget(key, msgflg )) < 0)   //Get the message queue ID for the given key
-      die("msgget");
-
-    //Message Type
-    sbuf.mtype = 1;
-    sbuf.mtext = currentTimeStamp();
-
-    buflen = strlen(sbuf.mtext) + 1 ;
-
-    if (msgsnd(msqid, &sbuf, buflen, IPC_NOWAIT) < 0)
+    if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        printf ("%d, %d, %s, %d\n", msqid, sbuf.mtype, sbuf.mtext, buflen);
-        die("msgsnd");
+        syslog(LOG_INFO,"%d  - %s",port, "Could not create socket");
+        return 1;
+    } 
+
+    memset(&serv_addr, '0', sizeof(serv_addr)); 
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port); 
+
+    if(inet_pton(AF_INET,"127.0.0.1", &serv_addr.sin_addr)<=0)
+    {
+        syslog(LOG_INFO,"%d  - %s",port, "Could not create inet_pton");
+        return 1;
+    } 
+    printf("Connecting to server\n");
+    if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    {
+       syslog(LOG_INFO,"%d  - %s",port, "send Request: Connect Failed");
+       // Here we assume that the other node doesnt exist
+       return 0;
     }
 
-    else
-        printf("Message Sent\n");
+    // write to the server for the request
+    printf("\nclient Message ==> %d\n", msg.timeStamp); 
+    sendto(sockfd, &msg, sizeof(struct message), 0, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)); 
 
-    exit(0);
+    while ( (n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0)
+    {
+        if(recvBuff[0] == '1') {
+            break;
+        } else {
+            syslog(LOG_INFO,"%d  - %s",port, "send Request: did not receive a good reply");
+        }
+    } 
+
+    close(sockfd);
+    return 0;
 }
 
 
-int receiveRequest(int msgKey)
-{
-    int msqid;
-    key_t key;
-    struct msgbuf rcvbuffer;
-
-    key = 1234;
-
-    if ((msqid = msgget(key, 0666)) < 0)
-      die("msgget()");
-
-
-     //Receive an answer of message type 1.
-    if (msgrcv(msqid, &rcvbuffer, MAXSIZE, 1, 0) < 0)
-      die("msgrcv");
-
-    printf("%s\n", rcvbuffer.mtext);
-    exit(0);
-}
