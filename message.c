@@ -38,19 +38,19 @@ int sendRequest(int port, struct message msg){
 
     if(inet_pton(AF_INET,"127.0.0.1", &serv_addr.sin_addr)<=0)
     {
-        syslog(LOG_INFO,"%d  - %s",port, "Could not create inet_pton");
+        syslog(LOG_INFO,"%d  - %s %d",msg.nodeNum, "Could not create inet_pton for port:", port);
         return 1;
     } 
     printf("Connecting to server\n");
     if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
-       syslog(LOG_INFO,"%d  - %s",port, "send Request: Connect Failed");
+       syslog(LOG_INFO,"%d  - %s %d",msg.nodeNum, "send Request: Connect Failed for port:", port);
        // Here we assume that the other node doesnt exist
        return 0;
     }
 
     // write to the server for the request
-    printf("\nclient Message ==> %d\n", msg.timeStamp); 
+    printf("\nclient Message ==> %ld\n", msg.timeStamp); 
     sendto(sockfd, &msg, sizeof(struct message), 0, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)); 
 
     while ( (n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0)
@@ -58,7 +58,7 @@ int sendRequest(int port, struct message msg){
         if(recvBuff[0] == '1') {
             break;
         } else {
-            syslog(LOG_INFO,"%d  - %s",port, "send Request: did not receive a good reply");
+            syslog(LOG_INFO,"%d  - %s %d",msg.nodeNum, "send Request: did not receive a good reply for port:", port);
         }
     } 
 

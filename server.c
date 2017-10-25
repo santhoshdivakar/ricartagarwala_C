@@ -106,11 +106,15 @@ void *connection_handler(void *socket_desc)
         memcpy((void *)&incomingMsg, (const void *)client_message,sizeof(struct message));
         if (incomingMsg.mtype == MSG_FINISHED) {
             //release the lock here.
-            syslog(LOG_INFO,"%d  - %s",nodeNum, "Server Process received FINISHED message ");
+            replyMessage = MSG_ALLOW_STR;
+            write(sock , replyMessage , strlen(replyMessage));
+            syslog(LOG_INFO,"%d  - %s",nodeNum, "Server Process processed FINISHED message ");
             globalLockTime = 0;
         } else {
             //request for the allow
             //check if the global lock is set for our client running the CS then wait
+            if (globalLockTime != 0)syslog(LOG_INFO,"%d  - %s: %ld",nodeNum, "Server Process globalLock Set", globalLockTime);
+
             while(globalLockTime != 0){
                 if (incomingMsg.timeStamp < globalLockTime ) {
                     break;
@@ -122,9 +126,9 @@ void *connection_handler(void *socket_desc)
                 syslog(LOG_INFO,"%d  - %s",nodeNum, "Server Process received REQUEST of same client ");
                 globalLockTime = incomingMsg.timeStamp;
             }
-            replyMessage = MSG_ALLOW_STR;
             syslog(LOG_INFO,"%d  - %s %d",nodeNum, "Server Process Replied with ALLOW to ->", incomingMsg.nodeNum);
-            write(sock , "1" , strlen(replyMessage));
+            replyMessage = MSG_ALLOW_STR;
+            write(sock , replyMessage , strlen(replyMessage));
         }
     }
      

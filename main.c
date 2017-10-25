@@ -26,7 +26,7 @@ int *getNodeList(void) {
     line=NULL;
     nodeIndex = 0;
     while ((read = getline(&line, &len, fp)) != -1) {
-        printf("Retrieved line of length %zu :\n", read);
+        printf("Retrieved line of length %d :\n", read);
         printf("%s", line);
         nodeList[nodeIndex] = atoi((const char *)line);
         free(line);
@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
     
     if (argc != 2) {
         printf("Syntax: \n %s <node_num>\n",argv[0]);
+        return 0;
     }
     // Get the syslog setup
     openlog("RICART",LOG_PID, LOG_LOCAL1);
